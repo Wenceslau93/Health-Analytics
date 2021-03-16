@@ -8,5 +8,6 @@ Este projeto tem como objetivo, criar um modelo que seja capaz de prever o tempo
 <a href="https://github.com/Wenceslau93/Health-Analytics/blob/main/index.html">Acesse o projeto Clicando aqui!</a>
 
 <br/>
-
-<center><img src="https://github.com/Wenceslau93/Health-Analytics/blob/main/imagem_projeto.png" alt="some text"></center>
+<center>
+<img src="https://github.com/Wenceslau93/Health-Analytics/blob/main/imagem_projeto.png" alt="some text">
+</center>
