@@ -7,7 +7,7 @@ Estudo realizado no curso de Business Analyst, na <a href="https://www.datascien
 
 <br/>
 
-<a href="https://github.com/Wenceslau93/Health-Analytics/blob/main/index.html">Acesse o projeto Clicando aqui!</a>
+<a href="https://wenceslau93.github.io/Health-Analytics/">Acesse o projeto Clicando aqui!</a>
 
 <br/>
 <center>
