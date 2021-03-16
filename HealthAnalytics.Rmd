@@ -1,0 +1,347 @@
+---
+title: "Health Analytics"
+author: "Diego Wenceslau"
+date: "25/01/2021"
+output:
+  pdf_document: default
+  word_document: default
+  html_document: default
+---
+
+---
+
+</br>
+
+<h5><b>Projeto: Podemos Prever o Tempo de Sobrevivência dos Pacientes 1 Ano Após Receberem um Transplante?
+
+</br>
+
+Este projeto tem como objetivo, criar um modelo que seja capaz de prever o tempo de sobrevivência dos Pacientes 1 Ano Após Receberem um Transplante.</b></h5>
+
+</br></br>
+
+<center><img src="https://lwfiles000.mycourse.app/datascienceacademy-public/social/600x600_social/308bd7e07a8bf73258e0d07116ea7264.png"></center>
+
+</br></br>
+
+
+<b>Usaremos dados reais disponibilizados publicamente.
+
+
+Os  dados  foram  extraídos do  SRTR  Database e modificados para  que  possa ser executado o script na máquina.
+
+Site oficial dos dados:https://www.srtr.org/about-the-data/the-srtr-database/</b>
+
+---
+
+</br>
+
+<b>Definindo o diretório de trabalho</b>
+```{r}
+setwd("C:/FCD/Business_Analytics/Cap09")
+getwd()
+```
+
+
+<b>Liberando os pacotes</b>
+
+```{r}
+library(dplyr)
+library(ggcorrplot)
+library(forecast)
+library(nnet)
+library(neuralnet)
+```
+
+
+<b>Carregando os dados</b>
+```{r}
+dados <- read.csv("dados/dataset.csv", header = TRUE, na.strings = c(""))
+dim(dados)
+```
+
+<b>Análise Exploratória, Limpeza, Transformação e Manipulação de Dados (Data Wrangling)</b>
+<b>Visualizando os dados</b>
+
+</br>
+
+<b>Visualizar as primeiras linhas</b>
+```{r}
+head(dados, 5)
+```
+
+
+<b>Renomeando a primeira coluna</b>
+```{r}
+colnames(dados)[1]<-'DAYSWAIT_CHRON' 
+```
+
+
+<b>Tipos dos dados</b>
+```{r}
+str(dados)
+```
+
+
+<b>Explorando os dados das variáveis numéricas</b>
+
+<b>A maioria dos pacientes, tem em torno de 60 anos de idade</b>
+```{r}
+hist(dados$AGE,
+     main = "Frequencia de Idade dos Pacientes", 
+     xlab = "Idade dos Pacientes", ylab = "Frequencia", 
+     col = c("#2b8cbe"), 
+     border = FALSE)
+```
+
+
+<b>A idade dos doadores de fígado, é bem variada, com quantidade maior de doadores, começando um pouco antes dos 20 anos de idade.</b>
+```{r}
+hist(dados$AGE_DON,
+     main = "Frequencia da Idade dos doadores", 
+     xlab = "Idade dos doadores", ylab = "Frequencia", 
+     col = c("#2b8cbe"), 
+     border = FALSE)
+```
+
+
+<b>A grande maioria das pessoas que recebeu o transplante de fígado, vivem cerca de 500 dias.</b>
+```{r}
+hist(dados$PTIME,
+     main = "Frequencia do tempo depois dos pacientes recebeu o transplante", 
+     xlab = "Tempo depois dos pacientes recebeu o transplante", ylab = "Frequencia", 
+     col = c("#2b8cbe"), 
+     border = FALSE)
+```
+
+
+<b>Tempo de espera é cerca de 1000 dias para uma pessoa receber o transplante.</b>
+```{r}
+hist(dados$DAYSWAIT_CHRON,
+     main = "Frequencia do Tempo de espera para uma pessoa receber o transplante", 
+     xlab = "Tempo de espera", ylab = "Frequencia", 
+     col = c("#2b8cbe"), 
+     border = FALSE)
+```
+
+
+<b>Pontuação do score da doença hepática que é qualquer condição que danifica o fígado e impede seu bom funcionamento.</b>
+```{r}
+hist(dados$FINAL_MELD_SCORE,
+     main = "Frequencia da Pontuação do score", 
+     xlab = "Pontuação do score", ylab = "Frequencia", 
+     col = c("#2b8cbe"), 
+     border = FALSE)
+```
+
+
+<b>Explorando os dados das variáveis categóricas</b>
+```{r}
+dados$DIAB <- as.factor(dados$DIAB)
+table(dados$DIAB)
+```
+
+
+</br>
+
+<b>A quantidade mostra mais pacientes sobreviveram ao transplante.</b>
+<b>0 -> não veio a óbito</b>
+<b>1 -> veio a óbito</b>
+```{r}
+dados$PSTATUS <- as.factor(dados$PSTATUS)
+table(dados$PSTATUS)
+```
+
+
+<b>Quantidade de paciente que recebe transplante.</b>
+<b>0 -> Masculino</b>
+<b>1 -> Feminino</b>
+```{r}
+dados$GENDER <- as.factor(dados$GENDER)
+table(dados$GENDER)
+```
+
+
+<b>Quantidade de doadores.</b>
+<b>0 -> Masculino</b>
+<b>1 -> Feminino</b>
+```{r}
+dados$GENDER_DON <- as.factor(dados$GENDER_DON)
+table(dados$GENDER_DON)
+```
+
+
+<b>Regiões.</b>
+```{r}
+dados$REGION <- as.factor(dados$REGION)
+table(dados$REGION)
+```
+
+
+<b>Anos que foram utilizado na pesquisa da coleta de dados</b>
+```{r}
+dados$TX_Year <- as.factor(dados$TX_Year)
+table(dados$TX_Year)
+```
+
+
+<b>Se tem tumor maligimo</b>
+```{r}
+dados$MALIG <- as.factor(dados$MALIG)
+table(dados$MALIG)
+```
+
+
+<b>Histórico de câncer do paciente</b>
+```{r}
+dados$HIST_CANCER_DON <- as.factor(dados$HIST_CANCER_DON)
+table(dados$HIST_CANCER_DON)
+```
+
+
+<b>Quantidade de 61600 considerando apenas os pacientes que sobreviveram ao primeiro ano de cirurgia</b>
+```{r}
+dados1 <- dados %>%
+  filter(PTIME > 365) %>%
+  mutate(PTIME = (PTIME - 365))
+
+dim(dados1)
+```
+
+
+<b>Quantidade de 23348 dos pacientes que sobreviveram ao primeiro ano da cirurgia.</b>
+<b>Filtramos os que permaneceram vivos por até três anos depois da cirurgia.</b>
+```{r}
+dados2 <- dados1 %>%
+  filter(PTIME <= 1095)
+
+dim(dados2)
+```
+
+
+<b>Vamos separar variáveis numéricas e categóricas</b>
+```{r}
+dados_num <- dados2[,!unlist(lapply(dados2, is.factor))]
+dim(dados_num)
+
+dados_fator <- dados2[,unlist(lapply(dados2, is.factor))]
+dim(dados_fator)
+```
+
+
+<b>Correlação entre as variáveis numéricas</b>
+<b>Para variáveis categóricas usamos associação</b>
+```{r}
+df_corr <- round(cor(dados_num, use = "complete.obs"), 2)
+ggcorrplot(df_corr)
+```
+
+
+<b># Agora vamos padronizar os dados de treino e teste de forma separada.
+# Executamos o procedimento anterior, mas de forma separada em cada subset.</b>
+```{r}
+set.seed(1)
+index <- sample(1:nrow(dados2), dim(dados2)[1]*.7)
+dados_treino <- dados2[index,]
+dados_teste <- dados2[-index,]
+
+```
+
+
+
+<b>Vamos separar variáveis numéricas e categóricas (treino)</b>
+```{r}
+dados_treino_num <- dados_treino[,!unlist(lapply(dados_treino, is.factor))]
+dim(dados_treino_num)
+```
+
+```{r}
+dados_treino_fator <- dados_treino[,unlist(lapply(dados_treino, is.factor))]
+dim(dados_treino_fator)
+```
+
+
+<b>Vamos separar variáveis numéricas e categóricas (teste)</b>
+```{r}
+dados_teste_num <- dados_teste[,!unlist(lapply(dados_teste, is.factor))]
+dim(dados_teste_num)
+
+```
+```{r}
+dados_teste_fator <- dados_teste[,unlist(lapply(dados_teste, is.factor))]
+dim(dados_teste_fator)
+```
+
+
+<b>Padronização dados de treino</b>
+```{r}
+dados_treino_num_norm <- scale(dados_treino_num)
+dados_treino_final <- cbind(dados_treino_num_norm, dados_treino_fator)
+dim(dados_treino_final)
+```
+
+<b>Padronização dados de teste</b>
+```{r}
+dados_teste_num_norm <- scale(dados_teste_num)
+dados_teste_final <- cbind(dados_teste_num_norm, dados_teste_fator)
+dim(dados_teste_final)
+```
+
+<b>Filtra os anos de 2001 e 2002</b>
+```{r}
+dados_treino_final <- dados_treino_final %>%
+  filter(TX_Year != 2001) %>%
+  filter(TX_Year != 2002)
+```
+
+
+```{r}
+dados_teste_final <- dados_teste_final %>%
+  filter(TX_Year != 2001) %>%
+  filter(TX_Year != 2002)
+```
+
+
+<b>Cria novamente o modelo agora com o outro dataset de treino</b>
+```{r}
+modelo_v1 <- lm(PTIME ~ FINAL_MELD_SCORE + 
+                  REGION + 
+                  LiverSize + 
+                  LiverSizeDon + 
+                  ALCOHOL_HEAVY_DON + 
+                  MALIG + 
+                  TX_Year,
+                data = dados_treino_final)
+
+summary(modelo_v1)
+```
+
+
+<b>Avaliação do modelo</b>
+
+<b>Com dados de treino</b>
+```{r}
+modelo_v1_pred_1 = predict(modelo_v1, newdata = dados_treino_final)
+accuracy(modelo_v1_pred_1, dados_treino_final$PTIME)
+```
+
+
+<b>Com dados de teste</b>
+```{r}
+modelo_v1_pred_2 = predict(modelo_v1, newdata = dados_teste_final)
+accuracy(modelo_v1_pred_2, dados_teste_final$PTIME)
+```
+
+
+<b>Distribuição do erro de validação</b>
+```{r}
+par(mfrow = c(1,1))
+residuos <- dados_teste_final$PTIME - modelo_v1_pred_2
+hist(residuos,
+      xlab = "Resíduos", ylab = "Frequencia",
+      main = "Sobreviventes de 1 a 3 Anos",
+      col = c("#2b8cbe"), 
+      border = FALSE)
+```
+
+<h5><b>Conclusão: O modelo conseguil prever o tempo de sobrevivência dos pacientes 1 ano após receberem um transplante.<b></h5>
